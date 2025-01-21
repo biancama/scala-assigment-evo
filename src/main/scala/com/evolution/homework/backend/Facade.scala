@@ -2,7 +2,7 @@ package com.evolution.homework.backend
 
 import cats.effect.IO
 import com.evolution.homework.backend.GameType.SingleCardGame
-import com.evolution.homework.backend.model.Game
+import com.evolution.homework.backend.model.{Game, PlayerAsset}
 import com.evolution.homework.backend.repository.{InMemorySimpleCrudGames, InMemorySimpleCrudPlayers}
 import com.evolution.homework.backend.rules.{GameRules, SingleGameCardGameRule}
 import com.evolution.homework.backend.services.WinnerDecision
@@ -58,6 +58,7 @@ object Facade {
       for {
         id <- idGenerator.generate
         game <- inMemoryGamesDb.find(id)
+        _ <- inMemoryPlayersDb.add(player, PlayerAsset(Tokens.zero))
         _ <- if (game.isDefined) {
           val currentPlayerDeals = game.get.deals
           val newGame = game.get.copy(deals = currentPlayerDeals.updated(player, Set.empty))
@@ -99,12 +100,21 @@ object Facade {
     override def makeDecision(gameId: GameId, player: Player, decision: CardGameDecision): IO[Unit] = for {
       game <- inMemoryGamesDb.find(gameId)
       decs = game.get.decisions
-      _ <- if (decs.keySet.size < game.get.gameType.playerPerGame - 1) {
-        val newGame = game.get.copy(decisions = decs.updated(player, decision))
-        inMemoryGamesDb.add(gameId, newGame)
+      newGame = game.get.copy(decisions = decs.updated(player, decision))
+      _ <- inMemoryGamesDb.add(gameId, newGame)
+      game <- inMemoryGamesDb.find(gameId)
+      _ <- if (decs.keySet.size >= game.get.gameType.playerPerGame - 1) {
+        val gameDecisions: Map[Player, (CardGameDecision, Set[Card])] = createGameDecision(game.get)
+        WinnerDecision.showDownAndResult(gameDecisions, inMemoryPlayersDb)
       } else {
-        WinnerDecision.showDownAndResult(Map.empty, inMemoryPlayersDb)
+        IO()
       }
     } yield ()
+
+    private def createGameDecision(game: Game): Map[Player, (CardGameDecision, Set[Card])] =
+      game.deals.map { case (player, cards) =>
+        val decision = game.decisions.get(player).get
+        player -> (decision, cards)
+      }
   })
 }

@@ -17,7 +17,7 @@ object WinnerDecision {
         _ <- players.traverse(pl => updateTokens(pl, -1, inMemorySimpleCrudPlayers))
       } yield ()
       // everyone folded
-    } else if (playersWhoHavePlay.keySet == 1) {
+    } else if (playersWhoHavePlay.keySet.size == 1) {
       // only one play
       for {
         players <- IO.pure(playersWhoHaveFolded.keySet.toList)
@@ -47,8 +47,8 @@ object WinnerDecision {
     else if (players.keySet.size == 1) Some(players.keySet.head)
     else {
       val playersWithHighestCardRank = players.map { case (player, cards) => (player , cards.head)}
-      val findTheHighestCard = playersWithHighestCardRank.values.toList.sortBy(_.rank.intValue).head
-      val newPlayers = playersWithHighestCardRank.filter { case (_, card) => card.rank.intValue < findTheHighestCard.rank.intValue}.keySet
+      val findTheHighestCard = playersWithHighestCardRank.values.toList.sortBy(- _.rank.intValue).head
+      val newPlayers = playersWithHighestCardRank.filter { case (_, card) => card.rank.intValue == findTheHighestCard.rank.intValue}.keySet
       val newPlayersWithCard: Map[Player, List[Card]] = newPlayers.map{ player => player -> players.get(player).get.tail }.toMap
       whoWin(newPlayersWithCard)
     }
