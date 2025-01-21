@@ -24,7 +24,7 @@ object WinnerDecision {
 
         // at least 2 played, find the possible winner
         val playersWithOrderedCards = playersWhoHavePlay.map { case (player, cards) => player -> cards.toList.sortBy( - _.rank.intValue)}
-        val possibleWinner = whoWin(playersWithOrderedCards)
+        val possibleWinner = whoWon(playersWithOrderedCards)
 
         possibleWinner match {
           case Some(winner) =>
@@ -39,7 +39,7 @@ object WinnerDecision {
     }
   }
 
-  private def whoWin( players: Map[Player, List[Card]]): Option[Player] = {
+  private def whoWon( players: Map[Player, List[Card]]): Option[Player] = {
     if (players.isEmpty ||  moreThanOnePlayerWithAllTheCardProcessed(players)) None
     else if (players.keySet.size == 1) Some(players.keySet.head)
     else {
@@ -47,7 +47,7 @@ object WinnerDecision {
       val findTheHighestCardBetweenAllPlayers = playersWithHighestCardRank.values.toList.sortBy(- _.rank.intValue).head
       val newPossibleWinners = playersWithHighestCardRank.filter { case (_, card) => card.rank.intValue == findTheHighestCardBetweenAllPlayers.rank.intValue}.keySet
       val newPossibleWinnersWithoutCardAlreadyProcessed: Map[Player, List[Card]] = newPossibleWinners.map{ player => player -> players.get(player).get.tail }.toMap
-      whoWin(newPossibleWinnersWithoutCardAlreadyProcessed)
+      whoWon(newPossibleWinnersWithoutCardAlreadyProcessed)
     }
   }
 

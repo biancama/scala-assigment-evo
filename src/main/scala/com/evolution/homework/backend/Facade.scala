@@ -119,15 +119,17 @@ object Facade {
       override def makeDecision(gameId: GameId, player: Player, decision: CardGameDecision): IO[Unit] = for {
         game <- inMemoryGamesDb.find(gameId)
         decs <- addNewDecisionToTheGame(gameId, game.get, player, decision)
-        game <- inMemoryGamesDb.find(gameId)
-        _ <- if (isGameReady(decs, game.get)) {
-          val gameDecisions: Map[Player, (CardGameDecision, Set[Card])] = createGameDecision(game.get)
-          WinnerDecision.showDownAndResult(gameDecisions, inMemoryPlayersDb, gameRules.get(game.get.gameType).get)
+        gameAfterTheNewDecision <- inMemoryGamesDb.find(gameId)
+        _ <- if (isGameReady(decs, gameAfterTheNewDecision.get)) {
+          val gameDecisions: Map[Player, (CardGameDecision, Set[Card])] = createGameDecision(gameAfterTheNewDecision.get)
+          WinnerDecision.showDownAndResult(gameDecisions, inMemoryPlayersDb, findGameRules(gameAfterTheNewDecision.get))
         } else {
           IO()
         }
       } yield ()
 
+      private def findGameRules(game:Game): GameRules = gameRules.get(game.gameType).get
+      
       private def addNewDecisionToTheGame(gameId: GameId, game: Game, player: Player, decision: CardGameDecision) = {
         val decs = game.decisions
         val newGame = game.copy(decisions = decs.updated(player, decision))
