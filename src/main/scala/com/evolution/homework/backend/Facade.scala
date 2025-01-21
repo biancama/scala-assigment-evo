@@ -1,7 +1,7 @@
 package com.evolution.homework.backend
 
 import cats.effect.IO
-import com.evolution.homework.backend.repository.InMemorySimpleCrud
+import com.evolution.homework.backend.repository.{ InMemorySimpleCrudPlayers}
 
 trait Facade {
 
@@ -30,12 +30,12 @@ trait Facade {
 }
 
 object Facade {
-  val inMemoryDb = InMemorySimpleCrud.apply[IO]
+  val inMemoryPlayersDb = InMemorySimpleCrudPlayers.apply[IO]
   // TODO:  Replace with your own implementation.
   def create: IO[Facade] = IO(new Facade {
     /** @return The balance of "tokens" that a player has. The initial balance should be 0. */
     override def getPlayerTokens(player: Player): IO[Tokens] = for {
-      playerInDb <- inMemoryDb.find(player)
+      playerInDb <- inMemoryPlayersDb.find(player)
       tokens = playerInDb match {
         case Some(playerAsset) => playerAsset.tokens
         case None => Tokens.zero

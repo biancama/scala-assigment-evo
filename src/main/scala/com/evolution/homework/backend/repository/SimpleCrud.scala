@@ -1,16 +1,13 @@
 package com.evolution.homework.backend.repository
 
-import com.evolution.homework.backend.{Player, Tokens}
 
-final case class PlayerAsset (tokens: Tokens)
-
-trait SimpleCrud [F[_]] {
-  val simpleCrudService: SimpleCrud.Service[F]
+trait SimpleCrud [F[_], K, V] {
+  val simpleCrudService: SimpleCrud.Service[F, K, V]
 }
 object SimpleCrud {
-  trait Service[F[_]] {
-    def add(player: Player, playerAsset: PlayerAsset): F[Unit]
+  trait Service[F[_], K, V] {
+    def add(key: K, v: V): F[Unit]
 
-    def find(player: Player): F[Option[PlayerAsset]]
+    def find(k: K): F[Option[V]]
   }
 }
