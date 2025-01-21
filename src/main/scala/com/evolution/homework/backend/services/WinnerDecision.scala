@@ -1,28 +1,28 @@
 package com.evolution.homework.backend.services
 
 import cats.effect.IO
-import cats.effect.syntax._
 import cats.implicits.toTraverseOps
 import com.evolution.homework.backend.CardGameDecision.Fold
 import com.evolution.homework.backend.repository.InMemorySimpleCrudPlayers
+import com.evolution.homework.backend.rules.GameRules
 import com.evolution.homework.backend.{Card, CardGameDecision, Player}
 
 object WinnerDecision {
-  def showDownAndResult(decisions: Map[Player, (CardGameDecision, Set[Card])], inMemorySimpleCrudPlayers: InMemorySimpleCrudPlayers[IO]): IO[Unit] = {
+  def showDownAndResult(decisions: Map[Player, (CardGameDecision, Set[Card])], inMemorySimpleCrudPlayers: InMemorySimpleCrudPlayers[IO], gameRules: GameRules): IO[Unit] = {
     val (playersWhoHaveFoldedMap,playersWhoHavePlayMap)  = decisions.partition { case (_, decision) => decision._1 == Fold}
     val (playersWhoHaveFolded,playersWhoHavePlay) = (playersWhoHaveFoldedMap.map{ case (player, dec) => player -> dec._2}, playersWhoHavePlayMap.map{ case (player, dec) => player -> dec._2})
     if (playersWhoHavePlay.isEmpty) {
       for {
         players <- IO.pure(playersWhoHaveFolded.keySet.toList)
-        _ <- players.traverse(pl => updateTokens(pl, -1, inMemorySimpleCrudPlayers))
+        _ <- players.traverse(pl => updateTokens(pl, -gameRules.tokensForEveryoneFolds, inMemorySimpleCrudPlayers))
       } yield ()
       // everyone folded
     } else if (playersWhoHavePlay.keySet.size == 1) {
       // only one play
       for {
         players <- IO.pure(playersWhoHaveFolded.keySet.toList)
-        _ <- players.traverse(pl => updateTokens(pl, -3, inMemorySimpleCrudPlayers))
-        _ <- updateTokens(playersWhoHavePlay.keySet.head, 3, inMemorySimpleCrudPlayers)
+        _ <- players.traverse(pl => updateTokens(pl, -gameRules.tokensForOnePlayAndTheOthersFolds, inMemorySimpleCrudPlayers))
+        _ <- updateTokens(playersWhoHavePlay.keySet.head, gameRules.tokensForOnePlayAndTheOthersFolds, inMemorySimpleCrudPlayers)
       } yield ()
     } else {
 
@@ -34,16 +34,21 @@ object WinnerDecision {
           case Some(winner) =>
             val losers = playersWhoHavePlay.filter{ case (player, _) => player != winner}.keySet.toList
             for {
-              _ <- losers.traverse(pl => updateTokens(pl, -10, inMemorySimpleCrudPlayers))
-              _ <- updateTokens(winner, 10, inMemorySimpleCrudPlayers)
+              players <- IO.pure(playersWhoHaveFolded.keySet.toList)
+              _ <- players.traverse(pl => updateTokens(pl, -gameRules.tokensForEveryoneFolds, inMemorySimpleCrudPlayers))
+              _ <- losers.traverse(pl => updateTokens(pl, -gameRules.tokensForMoreThanOnePlays, inMemorySimpleCrudPlayers))
+              _ <- updateTokens(winner, gameRules.tokensForMoreThanOnePlays, inMemorySimpleCrudPlayers)
             } yield()
-          case None => IO()
+          case None => for {
+            players <- IO.pure(playersWhoHaveFolded.keySet.toList)
+            _ <- players.traverse(pl => updateTokens(pl, -gameRules.tokensForEveryoneFolds, inMemorySimpleCrudPlayers))
+          } yield()
         }
     }
   }
 
   private def whoWin( players: Map[Player, List[Card]]): Option[Player] = {
-    if (players.isEmpty || players.values.size == 0) None
+    if (players.isEmpty || players.keySet.size > 1 && players.values.head.isEmpty) None
     else if (players.keySet.size == 1) Some(players.keySet.head)
     else {
       val playersWithHighestCardRank = players.map { case (player, cards) => (player , cards.head)}
