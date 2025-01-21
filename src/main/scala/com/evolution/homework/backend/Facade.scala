@@ -1,8 +1,11 @@
 package com.evolution.homework.backend
 
 import cats.effect.IO
+import com.evolution.homework.backend.GameType.SingleCardGame
 import com.evolution.homework.backend.model.Game
 import com.evolution.homework.backend.repository.{InMemorySimpleCrudGames, InMemorySimpleCrudPlayers}
+import com.evolution.homework.backend.rules.{GameRules, SingleGameCardGameRule}
+import com.evolution.homework.backend.services.WinnerDecision
 
 trait Facade {
 
@@ -33,6 +36,9 @@ trait Facade {
 object Facade {
   val inMemoryPlayersDb = InMemorySimpleCrudPlayers.apply[IO]
   val inMemoryGamesDb = InMemorySimpleCrudGames.apply[IO]
+  private val gameRules: Map[GameType, GameRules] = Map(
+    SingleCardGame -> new SingleGameCardGameRule
+  )
   // TODO:  Replace with your own implementation.
   def create: IO[Facade] = IO(new Facade {
     /** @return The balance of "tokens" that a player has. The initial balance should be 0. */
@@ -53,8 +59,8 @@ object Facade {
         id <- idGenerator.generate
         game <- inMemoryGamesDb.find(id)
         _ <- if (game.isDefined) {
-          val currentPlayer = game.get.deals
-          val newGame = game.get.copy(deals = currentPlayer.updated(player, Set.empty))
+          val currentPlayerDeals = game.get.deals
+          val newGame = game.get.copy(deals = currentPlayerDeals.updated(player, Set.empty))
           inMemoryGamesDb.add(id, newGame)
         } else {
           inMemoryGamesDb.add(id, Game(gameType, Map(player -> Set.empty)))
@@ -90,6 +96,15 @@ object Facade {
     /** Applies a player's decision for a game in progress. If the game finishes upon this decision, the
      * implementation should apply the results to player balances.
      */
-    override def makeDecision(gameId: GameId, player: Player, decision: CardGameDecision): IO[Unit] = ???
+    override def makeDecision(gameId: GameId, player: Player, decision: CardGameDecision): IO[Unit] = for {
+      game <- inMemoryGamesDb.find(gameId)
+      decs = game.get.decisions
+      _ <- if (decs.keySet.size < game.get.gameType.playerPerGame - 1) {
+        val newGame = game.get.copy(decisions = decs.updated(player, decision))
+        inMemoryGamesDb.add(gameId, newGame)
+      } else {
+        WinnerDecision.showDownAndResult(Map.empty, inMemoryPlayersDb)
+      }
+    } yield ()
   })
 }
