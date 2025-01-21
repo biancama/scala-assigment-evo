@@ -1,7 +1,8 @@
 package com.evolution.homework.backend
 
 import cats.effect.IO
-import com.evolution.homework.backend.repository.{ InMemorySimpleCrudPlayers}
+import com.evolution.homework.backend.model.{Deal, Game}
+import com.evolution.homework.backend.repository.{InMemorySimpleCrudGames, InMemorySimpleCrudPlayers}
 
 trait Facade {
 
@@ -31,6 +32,7 @@ trait Facade {
 
 object Facade {
   val inMemoryPlayersDb = InMemorySimpleCrudPlayers.apply[IO]
+  val inMemoryGamesDb = InMemorySimpleCrudGames.apply[IO]
   // TODO:  Replace with your own implementation.
   def create: IO[Facade] = IO(new Facade {
     /** @return The balance of "tokens" that a player has. The initial balance should be 0. */
@@ -46,10 +48,22 @@ object Facade {
      *
      * @return `GameId` irregardless if there were enough or not enough players to start a game.
      */
-    override def joinGame(idGenerator: GameIdGenerator, player: Player, gameType: GameType): IO[GameId] = ???
+    override def joinGame(idGenerator: GameIdGenerator, player: Player, gameType: GameType): IO[GameId] =
+      for {
+        id <- idGenerator.generate
+        game <- inMemoryGamesDb.find(id)
+        _ <- if (game.isDefined) {
+          val currentPlayer = game.get.players
+          val newGame = game.get.copy(players = currentPlayer.updated(player, Set.empty))
+          inMemoryGamesDb.add(id, newGame)
+        } else {
+          inMemoryGamesDb.add(id, Game(gameType, Map(player -> Set.empty)))
+        }
+      } yield (id)
+
 
     /** @return The player's cards if the game is in progress, or `None` if the game is not in progress. */
-    override def getPlayerCards(gameId: GameId, player: Player): IO[Option[Set[Card]]] = ???
+    override def getPlayerCards(gameId: GameId, player: Player): IO[Option[Set[Card]]] = IO.pure(None)
 
     /** Called to allow the implementation to do the card dealing step. You can assume that there will not be
      * multiple concurrent invocations of this method, and rely that this method will be called after
