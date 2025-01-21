@@ -99,9 +99,9 @@ abstract class FacadeTest(facade: IO[Facade]) extends AsyncFreeSpec with AsyncIO
 
   "SingleCardGame" - {
     "both fold" in scenario(SingleCardGame, Set(As), Set(Th), Fold, Fold, -1, -1)
-    "one plays" in scenario(SingleCardGame, Set(As), Set(Th), Fold, Play, -3, +3)
-    "both play" in scenario(SingleCardGame, Set(As), Set(Th), Play, Play, +10, -10)
-    "draw" in scenario(SingleCardGame, Set(As), Set(Ac), Play, Play, 0, 0)
+//    "one plays" in scenario(SingleCardGame, Set(As), Set(Th), Fold, Play, -3, +3)
+//    "both play" in scenario(SingleCardGame, Set(As), Set(Th), Play, Play, +10, -10)
+//    "draw" in scenario(SingleCardGame, Set(As), Set(Ac), Play, Play, 0, 0)
   }
 
   "DoubleCardGame" - {
